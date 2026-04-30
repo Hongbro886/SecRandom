@@ -1063,9 +1063,16 @@ class FloatingNotificationManager:
                     normalized_name = _normalize_text(item[1])
                     exist = bool(item[2])
 
+                    # 安全转换student_id，处理浮点数字符串如"18.0"和"nan"
+                    try:
+                        float_val = float(student_id)
+                        student_id_int = int(float_val) if not (float_val != float_val) else 0  # NaN check
+                    except (ValueError, TypeError, OverflowError):
+                        student_id_int = 0
+
                     selected_students_for_ipc.append(
                         {
-                            "student_id": int(student_id or 0),
+                            "student_id": student_id_int,
                             "student_name": normalized_name,
                             "display_text": normalized_name,
                             "exists": exist,

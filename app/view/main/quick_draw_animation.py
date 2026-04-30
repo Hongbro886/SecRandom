@@ -353,7 +353,7 @@ class QuickDrawAnimation(QObject):
                 NotificationConfig(
                     title="抽取失败",
                     content="未设置默认抽取名单，请在设置中配置默认班级",
-                    icon=FluentIcon.WARNING,
+                    icon=get_theme_icon("ic_fluent_warning_20_filled"),
                 ),
                 parent=self.roll_call_widget,
             )
@@ -378,7 +378,7 @@ class QuickDrawAnimation(QObject):
                     NotificationConfig(
                         title="抽取失败",
                         content=f"班级 {class_name} 名单为空或无可抽取学生，请检查名单配置",
-                        icon=FluentIcon.WARNING,
+                        icon=get_theme_icon("ic_fluent_warning_20_filled"),
                     ),
                     parent=self.roll_call_widget,
                 )
@@ -424,7 +424,7 @@ class QuickDrawAnimation(QObject):
                     NotificationConfig(
                         title="抽取失败",
                         content=f"班级 {class_name} 名单为空或无可抽取学生，请检查名单配置",
-                        icon=FluentIcon.WARNING,
+                        icon=get_theme_icon("ic_fluent_warning_20_filled"),
                     ),
                     parent=self.roll_call_widget,
                 )

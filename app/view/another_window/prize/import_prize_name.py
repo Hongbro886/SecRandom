@@ -586,7 +586,7 @@ class ImportPrizeNameWindow(QWidget):
             best_score = 0
 
             for column in columns:
-                column_lower = column.lower()
+                column_lower = str(column).lower()
                 for i, keyword in enumerate(keywords):
                     # 完全匹配得分最高
                     if column_lower == keyword.lower():

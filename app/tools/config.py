@@ -132,6 +132,28 @@ def create_sentry_before_send_filter():
                 if type_ == "COMError" and "没有注册类" in str(value):
                     return None
 
+                # 过滤网络连接相关错误（预期的网络故障，非产品缺陷）
+                _NETWORK_ERROR_TYPES = {
+                    "ClientConnectorError",
+                    "ClientConnectorDNSError",
+                    "ClientConnectorCertificateError",
+                    "ClientConnectionResetError",
+                    "ClientOSError",
+                    "ConnectionTimeoutError",
+                    "SocketTimeoutError",
+                }
+                if type_ in _NETWORK_ERROR_TYPES:
+                    return None
+
+                # 过滤 aiohttp 超时和限流错误
+                if type_ == "TimeoutError" and module in (
+                    "aiohttp.helpers",
+                    "aiohttp.streams",
+                ):
+                    return None
+                if type_ == "ClientResponseError" and "429" in str(value):
+                    return None
+
         return event
 
     return before_send

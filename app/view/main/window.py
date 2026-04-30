@@ -906,7 +906,7 @@ class MainWindow(FluentWindow):
             dict: 原始设置字典
         """
         return {
-            "count": roll_call_widget.current_count,
+            "count": getattr(roll_call_widget, "current_count", 1),
             "list_index": roll_call_widget.list_combobox.currentIndex(),
             "range_index": roll_call_widget.range_combobox.currentIndex(),
             "gender_index": roll_call_widget.gender_combobox.currentIndex(),

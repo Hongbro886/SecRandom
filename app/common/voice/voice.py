@@ -792,7 +792,7 @@ class TTSHandler:
 
         with self.system_tts_lock:
             if self.voice_engine is None:
-                logger.exception("系统TTS引擎未初始化，无法播放语音")
+                logger.warning("系统TTS引擎未初始化，无法播放语音")
                 return
             for name in student_names:
                 try:
