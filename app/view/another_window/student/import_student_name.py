@@ -941,4 +941,4 @@ class ImportStudentNameWindow(QWidget):
                 f"已覆盖班级 '{class_name}' 的数据，共 {len(all_students)} 名学生"
             )
         else:
-            logger.info(f"已保存 {len(all_students)} 名学生到新班级 '{class_name}'")
+            logger.info(f"已保存 {len(all_students)} 名学生到新班级 '{class_name}'")
