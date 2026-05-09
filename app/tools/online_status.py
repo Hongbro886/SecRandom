@@ -28,6 +28,15 @@ from app.tools.variable import (
 
 _online_status_reporter: Optional["OnlineStatusReporter"] = None
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="online_status")
+_ip_location_cache: Dict[str, Optional[str] | bool] = {
+    "initialized": False,
+    "ip_address": None,
+    "country": None,
+    "province": None,
+    "city": None,
+    "district": None,
+}
+_ip_location_cache_lock = threading.Lock()
 
 
 def _detect_device_type() -> str:
@@ -137,6 +146,52 @@ def _get_ip_location(ip: str, timeout_seconds: float = 10.0) -> Dict[str, Any]:
         }
 
 
+def _build_ip_location_cache() -> Dict[str, str]:
+    telemetry_mode = readme_settings_async("basic_settings", "telemetry_mode") or "full"
+    if telemetry_mode == "anonymous":
+        return {
+            "ip_address": "0.0.0.0",
+            "country": "未知",
+            "province": "未知",
+            "city": "未知",
+            "district": "未知",
+        }
+
+    ip_address = _get_public_ip(SECTL_ONLINE_REPORT_TIMEOUT_SECONDS)
+    if not ip_address:
+        ip_address = _get_local_ip()
+
+    location = _get_ip_location(ip_address, SECTL_ONLINE_REPORT_TIMEOUT_SECONDS)
+    return {
+        "ip_address": ip_address,
+        "country": location.get("country", "未知"),
+        "province": location.get("province", "未知"),
+        "city": location.get("city", "未知"),
+        "district": location.get("district", "未知"),
+    }
+
+
+def initialize_ip_location_cache(
+    force_refresh: bool = False,
+) -> Dict[str, Optional[str] | bool]:
+    """初始化在线状态上报使用的 IP 与位置信息缓存。"""
+    with _ip_location_cache_lock:
+        if _ip_location_cache.get("initialized") and not force_refresh:
+            return dict(_ip_location_cache)
+
+    cache_data = _build_ip_location_cache()
+
+    with _ip_location_cache_lock:
+        _ip_location_cache.update(cache_data)
+        _ip_location_cache["initialized"] = True
+        return dict(_ip_location_cache)
+
+
+def _get_ip_location_cache() -> Dict[str, Optional[str] | bool]:
+    with _ip_location_cache_lock:
+        return dict(_ip_location_cache)
+
+
 def _load_or_create_device_uuid() -> str:
     device_uuid = readme_settings_async("basic_settings", "offline_user_id")
     if device_uuid:
@@ -164,22 +219,17 @@ def _do_report(
     logger.debug(f"上报模式: {telemetry_mode}, report_ip={report_ip}")
 
     if report_ip:
-        if not ip_address:
-            ip_address = _get_public_ip(SECTL_ONLINE_REPORT_TIMEOUT_SECONDS)
-            if not ip_address:
-                ip_address = _get_local_ip()
-        if not all([country, province, city, district]):
-            location = _get_ip_location(ip_address, SECTL_ONLINE_REPORT_TIMEOUT_SECONDS)
-            country = country or location.get("country", "未知")
-            province = province or location.get("province", "未知")
-            city = city or location.get("city", "未知")
-            district = district or location.get("district", "未知")
-    else:
-        ip_address = ip_address or "0.0.0.0"
+        ip_address = ip_address or "unknown"
         country = country or "未知"
         province = province or "未知"
         city = city or "未知"
         district = district or "未知"
+    else:
+        ip_address = "0.0.0.0"
+        country = "未知"
+        province = "未知"
+        city = "未知"
+        district = "未知"
 
     payload = {
         "platform_id": platform_id,
@@ -242,6 +292,13 @@ def report_online_status_async(
     platform_id = platform_id or SECTL_PLATFORM_ID
     device_uuid = device_uuid or _load_or_create_device_uuid()
     device_type = device_type or _detect_device_type()
+    cache = _get_ip_location_cache()
+    if cache.get("initialized"):
+        ip_address = ip_address or str(cache.get("ip_address") or "unknown")
+        country = country or str(cache.get("country") or "未知")
+        province = province or str(cache.get("province") or "未知")
+        city = city or str(cache.get("city") or "未知")
+        district = district or str(cache.get("district") or "未知")
 
     _executor.submit(
         _do_report,
@@ -280,7 +337,14 @@ class OnlineStatusReporter:
 
     def _init_ip_and_location_async(self):
         def _do_init():
-            self._initialized = True
+            cache = initialize_ip_location_cache()
+            self._ip_address = str(cache.get("ip_address") or "unknown")
+            self._country = str(cache.get("country") or "未知")
+            self._province = str(cache.get("province") or "未知")
+            self._city = str(cache.get("city") or "未知")
+            self._district = str(cache.get("district") or "未知")
+            with self._lock:
+                self._initialized = True
             logger.debug("在线状态上报器初始化完成")
             self._report_async()
 
@@ -329,6 +393,10 @@ class OnlineStatusReporter:
         if not self._is_running:
             return
 
+        if not self._initialized:
+            logger.debug("在线状态上报器尚未完成 IP 与位置缓存初始化，跳过本次上报")
+            return
+
         logger.debug("触发在线状态上报")
 
         _executor.submit(
@@ -336,11 +404,11 @@ class OnlineStatusReporter:
             self.platform_id,
             self.device_uuid,
             self.device_type,
-            None,  # 每次重新获取公网 IP
-            None,  # 每次重新获取位置信息
-            None,
-            None,
-            None,
+            self._ip_address,
+            self._country,
+            self._province,
+            self._city,
+            self._district,
         )
 
     def report_now(self):
