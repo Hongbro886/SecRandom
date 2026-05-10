@@ -345,7 +345,7 @@ UPDATE_CHECK_THREAD_TIMEOUT_MS = 2000  # 更新检查线程超时时间（毫秒
 PROCESS_EXIT_WAIT_SECONDS = 1  # 进程退出等待时间（秒）
 
 # -------------------- SECTL 在线状态上报配置 --------------------
-SECTL_API_BASE_URL = "https://appwrite.sectl.top"
+SECTL_API_BASE_URL = "https://appwrite.sectl.cn"
 SECTL_PLATFORM_ID = "69c8cd6a0012dd3ea10a"
 SECTL_ONLINE_REPORT_INTERVAL_MS = 120000
 SECTL_ONLINE_REPORT_TIMEOUT_SECONDS = 10

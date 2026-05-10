@@ -27,6 +27,7 @@ from app.tools.config import (
     reset_drawn_prize_record,
 )
 from app.tools.settings_access import readme_settings_async
+from app.tools.platform_report import record_lottery_metric_async
 from app.tools.list_specific_settings_access import (
     read_lottery_setting,
     get_safe_font_size_list_specific,
@@ -663,9 +664,11 @@ class LotteryManager(QObject):
             ]
             record_drawn_prize(self.current_pool_name, prize_names)
 
-        save_lottery_history(
+        saved = save_lottery_history(
             self.current_pool_name, selected_items, group_filter, gender_filter
         )
+        if saved:
+            record_lottery_metric_async()
 
         if self.enable_student_assignment and self.current_class_name:
             student_dicts = []
@@ -694,6 +697,7 @@ class LotteryManager(QObject):
                 self.current_gender_filter,
                 self.current_group_filter,
                 half_repeat,
+                report_metric=False,
             )
 
     def reset_records(self, parent=None):

@@ -442,6 +442,12 @@ def start_online_status_reporter():
         _online_status_reporter = initialize_online_status_reporter()
 
     _online_status_reporter.start()
+    try:
+        from app.tools.platform_report import record_app_launch_metric_async
+
+        record_app_launch_metric_async()
+    except Exception as e:
+        logger.warning(f"记录应用启动自定义报告失败: {e}")
 
 
 def stop_online_status_reporter():
