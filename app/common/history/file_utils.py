@@ -71,8 +71,18 @@ def get_history_file_path(history_type: str, file_name: str) -> Path:
     history_dir = get_path(f"data/history/{history_type}_history")
     if history_dir.exists() and not history_dir.is_dir():
         logger.warning(f"检测到旧版历史记录文件，正在删除以创建目录: {history_dir}")
-        history_dir.unlink()
-    history_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            history_dir.unlink(missing_ok=True)
+        except PermissionError as e:
+            logger.error(f"删除旧版历史记录文件失败（权限不足）: {history_dir}, 错误: {e}")
+        except OSError as e:
+            logger.error(f"删除旧版历史记录文件失败: {history_dir}, 错误: {e}")
+    try:
+        history_dir.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        logger.error(f"创建历史记录目录失败，目标仍为文件: {history_dir}")
+    except OSError as e:
+        logger.error(f"创建历史记录目录失败: {history_dir}, 错误: {e}")
     return history_dir / f"{file_name}.json"
 
 
