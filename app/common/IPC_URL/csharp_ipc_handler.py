@@ -420,11 +420,16 @@ if CSHARP_AVAILABLE:
                             None, lambda task=task: task.Wait()
                         )
                         return True
+                    except asyncio.CancelledError:
+                        return False
                     except Exception as e:
                         logger.warning(
                             f"C# IPC 连接失败（ClassIsland 可能未运行），{retry_delay:.0f}s 后重试: {e}"
                         )
-                        await asyncio.sleep(retry_delay)
+                        try:
+                            await asyncio.sleep(retry_delay)
+                        except asyncio.CancelledError:
+                            return False
                 return False
 
             async def client():
@@ -436,32 +441,33 @@ if CSHARP_AVAILABLE:
                     Action(lambda: self._on_class_test()),
                 )
 
-                if not await connect_with_retry():
-                    return
-                self.is_connected = True
-                logger.debug("C# IPC 连接成功！")
+                try:
+                    if not await connect_with_retry():
+                        return
+                    self.is_connected = True
+                    logger.debug("C# IPC 连接成功！")
 
-                while self.is_running:
-                    await asyncio.sleep(1)
+                    while self.is_running:
+                        await asyncio.sleep(1)
 
-                    # logger.debug(f"stat: plugin({self._check_plugin_alive()}) ci({self._check_ci_alive()})")
-                    if not self.check_plugin_alive():
-                        if not self.check_ci_alive():
-                            logger.debug("C# IPC 断连！重连...")
-                            self.is_connected = False
+                        # logger.debug(f"stat: plugin({self._check_plugin_alive()}) ci({self._check_ci_alive()})")
+                        if not self.check_plugin_alive():
+                            if not self.check_ci_alive():
+                                logger.debug("C# IPC 断连！重连...")
+                                self.is_connected = False
 
-                            if not await connect_with_retry():
-                                break
-                            self.is_connected = True
-                            logger.debug("C# IPC 连接成功！")
-                        elif not self._no_plugin_logged:
-                            logger.debug("未安装 SecRandom-Ci 插件。")
-                            self._no_plugin_logged = True
-                    else:
-                        self._no_plugin_logged = False
-
-                self.ipc_client = None
-                self.is_connected = False
+                                if not await connect_with_retry():
+                                    break
+                                self.is_connected = True
+                                logger.debug("C# IPC 连接成功！")
+                            elif not self._no_plugin_logged:
+                                logger.debug("未安装 SecRandom-Ci 插件。")
+                                self._no_plugin_logged = True
+                        else:
+                            self._no_plugin_logged = False
+                finally:
+                    self.ipc_client = None
+                    self.is_connected = False
 
             # 启动新的 asyncio 事件循环
             self.loop = asyncio.new_event_loop()
@@ -471,7 +477,7 @@ if CSHARP_AVAILABLE:
             except asyncio.CancelledError:
                 pass
             except Exception as e:
-                logger.warning(f"C# IPC 客户端循环出错: {e}")
+                logger.exception(f"C# IPC 客户端循环出错: {e}")
             finally:
                 self.loop.close()
                 self.loop = None
