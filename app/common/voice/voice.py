@@ -382,7 +382,7 @@ class VoiceCacheManager:
         logger.debug(f"获取语音: text='{text}', voice='{voice}'")
 
         file_path: str = self._get_cache_file_path(text, voice)
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and self._is_valid_audio(file_path):
             logger.debug(f"命中磁盘缓存: {file_path}")
             return file_path
 
@@ -403,7 +403,7 @@ class VoiceCacheManager:
 
         while retry_count < max_retries:
             try:
-                communicate = edge_tts.Communicate(text, voice)
+                communicate = edge_tts.Communicate(text, voice, audio_format="riff-24khz-16bit-mono-pcm")
                 await communicate.save(file_path)
                 logger.debug(f"成功生成语音并保存至: {file_path}")
                 return
@@ -467,6 +467,19 @@ class VoiceCacheManager:
         )
         filename = f"{voice}_{safe_text}.wav"
         return os.path.join(self.audio_dir, filename)
+
+    def _is_valid_audio(self, file_path: str) -> bool:
+        """检查音频文件是否为有效格式"""
+        try:
+            sf.info(file_path)
+            return True
+        except Exception:
+            logger.warning(f"缓存文件格式无效，将重新生成: {file_path}")
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+            return False
 
     def _save_to_disk(self, file_path: str, data: np.ndarray, fs: int) -> None:
         """保存到磁盘"""
@@ -852,4 +865,4 @@ class TTSHandler:
                 try:
                     self.voice_engine.stop()
                 except Exception as e:
-                    logger.warning(f"停止系统TTS引擎失败: {e}")
+                    logger.warning(f"停止系统TTS引擎失败: {e}")
